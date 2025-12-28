@@ -325,60 +325,69 @@ class StockAnomalyDetector:
         
         return result
 
-# 使用示例
-if __name__ == "__main__":
+
+def main():
+    print("A股股票异动检测系统")
+    print("=" * 50)
+    print("功能说明：")
+    print("1. 连续10个交易日内，涨跌幅偏离值累计达 +100%")
+    print("2. 连续30个交易日内，涨跌幅偏离值累计达 +200%")
+    print("偏离值计算公式：单只股票涨跌幅 - 对应指数涨跌幅")
+    print("=" * 50)
+
     try:
+        # 创建检测器实例
         detector = StockAnomalyDetector()
-        
-        # 测试6开头的股票（上证）
-        result_6 = detector.detect_anomaly("603601")
-        print(f"股票603601异动检测结果: {result_6['has_anomaly']}")
-        print(f"10天偏离: {result_6['deviation_10d']:.2f}%")
-        print(f"30天偏离: {result_6['deviation_30d']:.2f}%")
-        print(f"当前价格: {result_6['current_price']:.2f}")
-        if result_6['critical_price_10d']:
-            print(f"10天临界价格: {result_6['critical_price_10d']:.2f}")
-        else:
-            print("10天异动已触发")
-        if result_6['critical_price_30d']:
-            print(f"30天临界价格: {result_6['critical_price_30d']:.2f}")
-        else:
-            print("30天异动已触发")
-        print()
-        
-        # 测试3开头的股票（深证）
-        result_3 = detector.detect_anomaly("301005")
-        print(f"股票301005异动检测结果: {result_3['has_anomaly']}")
-        print(f"10天偏离: {result_3['deviation_10d']:.2f}%")
-        print(f"30天偏离: {result_3['deviation_30d']:.2f}%")
-        print(f"当前价格: {result_3['current_price']:.2f}")
-        if result_3['critical_price_10d']:
-            print(f"10天临界价格: {result_3['critical_price_10d']:.2f}")
-        else:
-            print("10天异动已触发")
-        if result_3['critical_price_30d']:
-            print(f"30天临界价格: {result_3['critical_price_30d']:.2f}")
-        else:
-            print("30天异动已触发")
-        print()
-        
-        # 测试0开头的股票（深证）
-        result_0 = detector.detect_anomaly("002149")
-        print(f"股票002149异动检测结果: {result_0['has_anomaly']}")
-        print(f"10天偏离: {result_0['deviation_10d']:.2f}%")
-        print(f"30天偏离: {result_0['deviation_30d']:.2f}%")
-        print(f"当前价格: {result_0['current_price']:.2f}")
-        if result_0['critical_price_10d']:
-            print(f"10天临界价格: {result_0['critical_price_10d']:.2f}")
-        else:
-            print("10天异动已触发")
-        if result_0['critical_price_30d']:
-            print(f"30天临界价格: {result_0['critical_price_30d']:.2f}")
-        else:
-            print("30天异动已触发")
-    except Exception as e:
-        print(f"错误: {e}")
-        print("\n常见问题排查:")
-        print("1. 确认TUSHARE_TOKEN环境变量已正确设置（用于股票数据）")
-        print("2. 确认已安装AKShare: pip install akshare")
-        print("3. 检查网络连接是否正常")
+
+        # 示例股票代码
+        example_stocks = [
+            # ("603601", "再升科技"),
+            ("002163", "海南发展"),
+            # ("301005", "超杰"),
+            ("002149", "西部材料")
+        ]
+
+        for stock_code, description in example_stocks:
+            print(f"\n检测{description}: {stock_code}")
+            try:
+                result = detector.detect_anomaly(stock_code)
+
+                print(f"  当前价格: {result['current_price']:.2f}")
+                print(f"  是否异动: {'是' if result['has_anomaly'] else '否'}")
+                print(f"  10天偏离: {result['deviation_10d']:.2f}%")
+                print(f"  30天偏离: {result['deviation_30d']:.2f}%")
+
+                if result['has_anomaly']:
+                    triggered_rules = []
+                    if result['anomaly_10d']:
+                        triggered_rules.append("10天偏离≥100%")
+                    if result['anomaly_30d']:
+                        triggered_rules.append("30天偏离≥200%")
+                    print(f"  触发规则: {', '.join(triggered_rules)}")
+
+                print(f"  10天最低价: {result['min_price_10d']:.2f} ({result['min_date_10d']})")
+                print(f"  30天最低价: {result['min_price_30d']:.2f} ({result['min_date_30d']})")
+
+                if result['critical_price_10d']:
+                    print(f"  10天临界价格: {result['critical_price_10d']:.2f}")
+                else:
+                    print("  10天异动已触发")
+
+                if result['critical_price_30d']:
+                    print(f"  30天临界价格: {result['critical_price_30d']:.2f}")
+                else:
+                    print("  30天异动已触发")
+
+            except Exception as e:
+                print(f"  检测失败: {e}")
+
+        print("\n" + "=" * 50)
+        print("系统运行正常")
+
+    except ValueError as e:
+        print(f"配置错误: {e}")
+        print("请确保已安装tushare并设置了TUSHARE_TOKEN环境变量")
+
+
+if __name__ == "__main__":
+    main()
