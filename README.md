@@ -28,6 +28,8 @@
 ```bash
 pip install -r requirements.txt
 ```
+打包命令
+pyinstaller --onefile --console --name "A股股票异动检测系统" --collect-data akshare stock_monitor.py --clean
 
 ## 使用方法
 
@@ -37,14 +39,7 @@ pip install -r requirements.txt
 
 1. 安装tushare：`pip install tushare`
 2. 注册tushare账号并获取token：https://tushare.pro/
-3. 将token设置为环境变量：
-   ```bash
-   # Windows
-   set TUSHARE_TOKEN=9f238ba8094b9c34820125808456beb71f4b73f6cbadd5ebf123c03f
-   
-   # Linux/Mac
-   export TUSHARE_TOKEN=9f238ba8094b9c34820125808456beb71f4b73f6cbadd5ebf123c03f
-   ```
+3. token =9f238ba8094b9c34820125808456beb71f4b73f6cbadd5ebf123c03f
 
 ### 2. 运行示例
 
