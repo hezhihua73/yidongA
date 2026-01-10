@@ -289,7 +289,11 @@ class StockAnomalyDetector:
         critical_price_30d = None
         critical_growth_30d = None
         critical_growth_30d_gap = None
-        
+        critical_price_9d = None
+        critical_growth_9d_gap = None
+        critical_price_29d = None
+        critical_growth_29d_gap = None
+
         if not anomaly_10d:
             # 计算触发10天异动所需的临界价格
             required_index_growth_10d = index_growth_10d + 100
@@ -305,7 +309,37 @@ class StockAnomalyDetector:
             critical_price_30d = required_stock_price_30d
             critical_growth_30d = self.calculate_growth_rate(required_stock_price_30d, min_30d_price)
             critical_growth_30d_gap = (required_stock_price_30d - current_stock_price) / current_stock_price * 100
-        
+
+        if not anomaly_10d:
+            if critical_growth_10d_gap < 20.0:
+                # 如果涨幅空间小于20了,则计算下一天的空间
+                min_9d_price, min_9d_date, min_9mid_day = self.find_min_price_in_period(stock_data, 9)
+                index_price_9d = self.get_price_by_date(index_data, min_9d_date)
+                stock_growth_9d = self.calculate_growth_rate(current_stock_price, min_9d_price)
+                index_growth_9d = self.calculate_growth_rate(current_index_price, index_price_9d)
+                deviation_9d = stock_growth_9d - index_growth_9d
+                # 计算触发9天异动所需的临界价格
+                required_index_growth_9d = index_growth_9d + 100
+                required_stock_price_9d = min_9d_price * (1 + required_index_growth_9d / 100)
+                critical_price_9d = required_stock_price_9d
+                critical_growth_9d = self.calculate_growth_rate(required_stock_price_9d, min_9d_price)
+                critical_growth_9d_gap = (required_stock_price_9d - current_stock_price) / current_stock_price * 100
+
+        if not anomaly_30d:
+            if critical_growth_30d_gap < 20.0:
+                # 如果涨幅空间小于20了,则计算下一天的空间
+                min_29d_price, min_29d_date, min_29mid_day = self.find_min_price_in_period(stock_data, 29)
+                index_price_29d = self.get_price_by_date(index_data, min_29d_date)
+                stock_growth_29d = self.calculate_growth_rate(current_stock_price, min_29d_price)
+                index_growth_29d = self.calculate_growth_rate(current_index_price, index_price_29d)
+                deviation_29d = stock_growth_29d - index_growth_29d
+                # 计算触发29天异动所需的临界价格
+                required_index_growth_29d = index_growth_29d + 200
+                required_stock_price_29d = min_29d_price * (1 + required_index_growth_29d / 100)
+                critical_price_29d = required_stock_price_29d
+                critical_growth_29d = self.calculate_growth_rate(required_stock_price_29d, min_29d_price)
+                critical_growth_29d_gap = (required_stock_price_29d - current_stock_price) / current_stock_price * 100
+
         result = {
             'stock_code': stock_code,
             'index_code': index_code,
@@ -330,7 +364,11 @@ class StockAnomalyDetector:
             'critical_growth_10d_gap': critical_growth_10d_gap,
             'critical_growth_30d_gap': critical_growth_30d_gap,
             'min_10mid_day': min_10mid_day,
-            'min_30mid_day': min_30mid_day
+            'min_30mid_day': min_30mid_day,
+            'critical_price_9d': critical_price_9d,
+            'critical_growth_9d_gap': critical_growth_9d_gap,
+            'critical_price_29d':critical_price_29d,
+            'critical_growth_29d_gap':critical_growth_29d_gap,
         }
 
         return result
@@ -369,6 +407,12 @@ def display_result(result):
     else:
         print("  30天异动已触发")
 
+    if result['critical_price_9d'] is not None:
+        print(f"  明日10天临界价格: {result['critical_price_9d']:.2f} (临界涨幅: {result['critical_growth_9d_gap']:.2f}%)")
+
+    if result['critical_price_29d'] is not None:
+        print(f"  明日30天临界价格: {result['critical_price_29d']:.2f} (临界涨幅: {result['critical_growth_29d_gap']:.2f}%)")
+
 
 def main():
     # 设置控制台编码为UTF-8以处理中文字符
@@ -393,6 +437,7 @@ def main():
     print("1. 连续10个交易日内，涨跌幅偏离值累计达 +100%")
     print("2. 连续30个交易日内，涨跌幅偏离值累计达 +200%")
     print("偏离值计算公式：单只股票涨跌幅 - 对应指数涨跌幅")
+    print("最低价日期间隔天数，最大值为10，30")
     print("=" * 60)
 
     try:
