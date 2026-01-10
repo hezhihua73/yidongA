@@ -24,7 +24,7 @@ class StockAnomalyDetector:
         # 股票代码前缀对应的指数代码映射
         self.index_mapping = {
             '6': '000001',  # 上证指数
-            '3': '399102',  # 深证成指
+            '3': '399102',  # 创业板指
             '0': '399107'   # 深证综指
         }
         
@@ -168,7 +168,7 @@ class StockAnomalyDetector:
                 df = ak.stock_zh_index_spot_em()
                 index_data = df[df['代码'] == index_code]
             elif index_code == '399102':
-                # 深证成指
+                # 创业板指
                 df = ak.stock_zh_index_spot_em()
                 index_data = df[df['代码'] == index_code]
             elif index_code == '399107':
@@ -283,8 +283,10 @@ class StockAnomalyDetector:
         # 9. 反推最大涨幅和价格（如果未触发异动但接近触发）
         critical_price_10d = None
         critical_growth_10d = None
+        critical_growth_10d_gap = None
         critical_price_30d = None
         critical_growth_30d = None
+        critical_growth_30d_gap = None
         
         if not anomaly_10d:
             # 计算触发10天异动所需的临界价格
@@ -292,6 +294,7 @@ class StockAnomalyDetector:
             required_stock_price_10d = min_10d_price * (1 + required_index_growth_10d / 100)
             critical_price_10d = required_stock_price_10d
             critical_growth_10d = self.calculate_growth_rate(required_stock_price_10d, min_10d_price)
+            critical_growth_10d_gap = (required_stock_price_10d - current_stock_price) / current_stock_price * 100
         
         if not anomaly_30d:
             # 计算触发30天异动所需的临界价格
@@ -299,6 +302,7 @@ class StockAnomalyDetector:
             required_stock_price_30d = min_30d_price * (1 + required_index_growth_30d / 100)
             critical_price_30d = required_stock_price_30d
             critical_growth_30d = self.calculate_growth_rate(required_stock_price_30d, min_30d_price)
+            critical_growth_30d_gap = (required_stock_price_30d - current_stock_price) / current_stock_price * 100
         
         result = {
             'stock_code': stock_code,
@@ -320,73 +324,140 @@ class StockAnomalyDetector:
             'critical_price_10d': critical_price_10d,
             'critical_growth_10d': critical_growth_10d,
             'critical_price_30d': critical_price_30d,
-            'critical_growth_30d': critical_growth_30d
+            'critical_growth_30d': critical_growth_30d,
+            'critical_growth_10d_gap': critical_growth_10d_gap,
+            'critical_growth_30d_gap': critical_growth_30d_gap
         }
         
         return result
 
 
+def display_result(result):
+    """显示检测结果"""
+    print(f"  上一个交易日收盘价格: {result['current_price']:.2f}")
+    print(f"  是否异动: {'是' if result['has_anomaly'] else '否'}")
+    
+    # 使用颜色标识偏离值（仅在支持的终端中显示）
+    dev_10d_str = f"{result['deviation_10d']:.2f}%"
+    dev_30d_str = f"{result['deviation_30d']:.2f}%"
+    
+    print(f"  10天偏离: {dev_10d_str}")
+    print(f"  30天偏离: {dev_30d_str}")
+
+    if result['has_anomaly']:
+        triggered_rules = []
+        if result['anomaly_10d']:
+            triggered_rules.append("10天偏离≥100%")
+        if result['anomaly_30d']:
+            triggered_rules.append("30天偏离≥200%")
+        print(f"  触发规则: {', '.join(triggered_rules)}")
+
+    print(f"  10天最低价: {result['min_price_10d']:.2f} ({result['min_date_10d']})")
+    print(f"  30天最低价: {result['min_price_30d']:.2f} ({result['min_date_30d']})")
+
+    if result['critical_price_10d']:
+        print(f"  10天临界价格: {result['critical_price_10d']:.2f} (临界涨幅: {result['critical_growth_10d_gap']:.2f}%)")
+    else:
+        print("  10天异动已触发")
+
+    if result['critical_price_30d']:
+        print(f"  30天临界价格: {result['critical_price_30d']:.2f} (临界涨幅: {result['critical_growth_30d_gap']:.2f}%)")
+    else:
+        print("  30天异动已触发")
+
+
 def main():
-    print("A股股票异动检测系统")
-    print("=" * 50)
+    # 设置控制台编码为UTF-8以处理中文字符
+    import sys
+    import io
+    
+    # 尝试设置控制台编码
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        else:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except:
+        # 如果设置失败，继续执行
+        pass
+
+    print("=" * 60)
+    print("                   A股股票异动检测系统")
+    print("=" * 60)
     print("功能说明：")
     print("1. 连续10个交易日内，涨跌幅偏离值累计达 +100%")
     print("2. 连续30个交易日内，涨跌幅偏离值累计达 +200%")
     print("偏离值计算公式：单只股票涨跌幅 - 对应指数涨跌幅")
-    print("=" * 50)
+    print("=" * 60)
 
     try:
         # 创建检测器实例
         detector = StockAnomalyDetector()
-
-        # 示例股票代码
-        example_stocks = [
-            # ("603601", "再升科技"),
-            ("002163", "海南发展"),
-            # ("301005", "超杰"),
-            ("002149", "西部材料")
-        ]
-
-        for stock_code, description in example_stocks:
-            print(f"\n检测{description}: {stock_code}")
+        
+        print("\n欢迎使用A股股票异动检测系统")
+        print("提示：")
+        print("  - 输入6位股票代码开始检测")
+        print("  - 输入 'quit', 'exit', 'q' 或 '退出' 退出程序")
+        print("  - 输入 'help' 查看帮助信息")
+        
+        while True:
             try:
-                result = detector.detect_anomaly(stock_code)
-
-                print(f"  当前价格: {result['current_price']:.2f}")
-                print(f"  是否异动: {'是' if result['has_anomaly'] else '否'}")
-                print(f"  10天偏离: {result['deviation_10d']:.2f}%")
-                print(f"  30天偏离: {result['deviation_30d']:.2f}%")
-
-                if result['has_anomaly']:
-                    triggered_rules = []
-                    if result['anomaly_10d']:
-                        triggered_rules.append("10天偏离≥100%")
-                    if result['anomaly_30d']:
-                        triggered_rules.append("30天偏离≥200%")
-                    print(f"  触发规则: {', '.join(triggered_rules)}")
-
-                print(f"  10天最低价: {result['min_price_10d']:.2f} ({result['min_date_10d']})")
-                print(f"  30天最低价: {result['min_price_30d']:.2f} ({result['min_date_30d']})")
-
-                if result['critical_price_10d']:
-                    print(f"  10天临界价格: {result['critical_price_10d']:.2f}")
+                stock_input = input("\n>>> 请输入股票代码: ").strip()
+                
+                if stock_input.lower() in ['quit', 'exit', 'q', '退出']:
+                    print("感谢使用，再见！")
+                    input("按回车键退出...\n")  # 添加这行以保持窗口打开
+                    break
+                elif stock_input.lower() == 'help':
+                    print("\n帮助信息：")
+                    print("  - 本系统用于检测A股股票异动情况")
+                    print("  - 10天偏离：股票在最近10个交易日内的涨幅偏离指数的幅度")
+                    print("  - 30天偏离：股票在最近30个交易日内的涨幅偏离指数的幅度")
+                    print("  - 异动触发：10天偏离≥100% 或 30天偏离≥200%")
+                    continue
+                
+                # 验证输入格式
+                if not stock_input.isdigit() or len(stock_input) != 6:
+                    print("错误: 股票代码应为6位数字，请重新输入")
+                    continue
+                
+                print(f"\n正在检测股票: {stock_input} ...")
+                result = detector.detect_anomaly(stock_input)
+                
+                try:
+                    # 获取股票名称
+                    stock_name = ak.stock_info_a_code_name().set_index("code").loc[stock_input, "name"]
+                    print(f"\n股票名称: {stock_name}")
+                except:
+                    print(f"股票名称查询异常")
+                
+                print(f"检测完成！")
+                print("-" * 40)
+                display_result(result)
+                print("-" * 40)
+                
+            except ValueError as e:
+                if "不支持的股票代码前缀" in str(e):
+                    print(f"错误: 不支持的股票代码前缀，请输入A股股票代码(6位数字)")
                 else:
-                    print("  10天异动已触发")
-
-                if result['critical_price_30d']:
-                    print(f"  30天临界价格: {result['critical_price_30d']:.2f}")
-                else:
-                    print("  30天异动已触发")
-
+                    print(f"错误: {e}")
             except Exception as e:
-                print(f"  检测失败: {e}")
-
-        print("\n" + "=" * 50)
-        print("系统运行正常")
+                print(f"错误: 检测失败: {e}")
+                
+        print("\n" + "=" * 60)
+        print("                            系统已退出")
+        print("=" * 60)
+        input("按回车键退出...\n")  # 添加这行以保持窗口打开
 
     except ValueError as e:
-        print(f"配置错误: {e}")
+        print(f"错误: 配置错误: {e}")
         print("请确保已安装tushare并设置了TUSHARE_TOKEN环境变量")
+        input("按回车键退出...\n")  # 添加这行以保持窗口打开
+    except Exception as e:
+        print(f"错误: 系统错误: {e}")
+        print("请检查是否已安装必要的依赖库")
+        input("按回车键退出...\n")  # 添加这行以保持窗口打开
 
 
 if __name__ == "__main__":
