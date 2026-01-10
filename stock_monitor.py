@@ -113,8 +113,10 @@ class StockAnomalyDetector:
         min_idx = recent_data['close'].idxmin()
         min_price = recent_data.loc[min_idx, 'close']
         min_date = recent_data.loc[min_idx, 'date']
-        return min_price, min_date
-    
+        # 间隔交易日 30 和 10 是极限
+        min_mid_day = min_idx + 1
+        return min_price, min_date, min_mid_day
+
     def get_current_price(self, stock_code):
         """
         获取股票当前价格（使用tushare）
@@ -251,9 +253,9 @@ class StockAnomalyDetector:
         print(f"指数价格: {current_index_price:.2f}")
 
         # 4. 计算10天和30天的最低价格及对应日期
-        min_10d_price, min_10d_date = self.find_min_price_in_period(stock_data, 10)
-        min_30d_price, min_30d_date = self.find_min_price_in_period(stock_data, 30)
-        
+        min_10d_price, min_10d_date, min_10mid_day = self.find_min_price_in_period(stock_data, 10)
+        min_30d_price, min_30d_date, min_30mid_day = self.find_min_price_in_period(stock_data, 30)
+
         if min_10d_price is None or min_30d_price is None:
             raise ValueError("无法找到指定周期内的最低价格")
 
@@ -326,7 +328,9 @@ class StockAnomalyDetector:
             'critical_price_30d': critical_price_30d,
             'critical_growth_30d': critical_growth_30d,
             'critical_growth_10d_gap': critical_growth_10d_gap,
-            'critical_growth_30d_gap': critical_growth_30d_gap
+            'critical_growth_30d_gap': critical_growth_30d_gap,
+            'min_10mid_day': min_10mid_day,
+            'min_30mid_day': min_30mid_day
         }
 
         return result
@@ -352,8 +356,8 @@ def display_result(result):
             triggered_rules.append("30天偏离≥200%")
         print(f"  触发规则: {', '.join(triggered_rules)}")
 
-    print(f"  10天最低价: {result['min_price_10d']:.2f} ({result['min_date_10d']})")
-    print(f"  30天最低价: {result['min_price_30d']:.2f} ({result['min_date_30d']})")
+    print(f"  10天最低价: {result['min_price_10d']:.2f} ({result['min_date_10d']}) {result['min_10mid_day']}天")
+    print(f"  30天最低价: {result['min_price_30d']:.2f} ({result['min_date_30d']}) {result['min_30mid_day']}天")
 
     if result['critical_price_10d']:
         print(f"  10天临界价格: {result['critical_price_10d']:.2f} (临界涨幅: {result['critical_growth_10d_gap']:.2f}%)")
